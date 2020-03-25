@@ -1,0 +1,129 @@
+version: '2.1'
+
+volumes:
+  kong_data: {}
+  keycloak-datastore:
+
+networks:
+  kong-net:
+
+services:
+  kong:
+    build:
+      context: ./
+    container_name: kong-app
+    image: kong-oidc:latest
+    user: "${KONG_USER:-kong}"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_PROXY_LISTEN: 0.0.0.0:8000, 0.0.0.0:8443 ssl
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
+      KONG_CASSANDRA_CONTACT_POINTS: db
+      KONG_DATABASE: postgres
+      KONG_PG_DATABASE: ${KONG_PG_DATABASE:-kong}
+      KONG_PG_HOST: db
+      KONG_PG_PASSWORD: ${KONG_PG_PASSWORD:-kong}
+      KONG_PG_USER: ${KONG_PG_USER:-kong}
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_PLUGINS: bundled,oidc
+      KONG_LOG_LEVEL: debug
+    networks:
+    - kong-net
+    ports:
+    - "8000:8000" # Listener
+    - "8001:8001" # Admin API
+    - "8443:8443" # Listener  (SSL)
+    - "8444:8444" # Admin API (SSL)
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    restart: on-failure
+
+  db:
+    container_name: postgres
+    image: postgres:11-alpine
+    environment:
+      POSTGRES_DB: ${KONG_PG_DATABASE:-kong}
+      POSTGRES_PASSWORD: ${KONG_PG_PASSWORD:-kong}
+      POSTGRES_USER: ${KONG_PG_USER:-kong}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${KONG_PG_USER:-kong}"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    restart: on-failure
+    stdin_open: true
+    tty: true
+    networks:
+    - kong-net
+    volumes:
+    - kong_data:/var/lib/postgresql/data
+
+  konga:
+    container_name: konga
+    image: pantsel/konga
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+    - "1337:1337"
+    networks:
+    - kong-net
+    links:
+    - kong:kong
+
+  konga-prepare:
+    container_name: konga-prep
+    image: pantsel/konga:next
+    environment:
+      POSTGRES_DB: ${KONG_PG_DATABASE:-kong}
+      POSTGRES_PASSWORD: ${KONG_PG_PASSWORD:-kong}
+      POSTGRES_USER: ${KONG_PG_USER:-kong}
+    networks:
+    - kong-net
+    restart: on-failure
+    links:
+    - db
+    depends_on:
+      db:
+        condition: service_healthy
+
+  keycloak-db:
+    container_name: keycloak-db
+    image: postgres:11-alpine
+    volumes:
+    - keycloak-datastore:/var/lib/postgresql/data
+    networks:
+    - kong-net
+    ports:
+    - "25432:5432"
+    environment:
+      POSTGRES_DB:       keycloak
+      POSTGRES_USER:     keycloak
+      POSTGRES_PASSWORD: password
+
+  keycloak:
+    container_name: keycloak-app
+    image: jboss/keycloak:9.0.0
+    depends_on:
+    - keycloak-db
+    networks:
+    - kong-net
+    ports:
+    - "8180:8080"
+    environment:
+      DB_VENDOR:   POSTGRES
+      DB_ADDR:     keycloak-db
+      DB_PORT:     5432
+      DB_DATABASE: keycloak
+      DB_USER:     keycloak
+      DB_PASSWORD: password
+      KEYCLOAK_USER:     admin
+      KEYCLOAK_PASSWORD: admin
