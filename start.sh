@@ -1,6 +1,6 @@
 #!/bin/bash
 
-HOST_IP="192.168.33.12"
+HOST_IP="IP HERE"
 
 echo "Important: Make sure jq is installed in the system"
 
