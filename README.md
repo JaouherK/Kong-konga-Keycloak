@@ -18,6 +18,8 @@ for windows 10+:
 $ sh ./prepare.sh
 ```
 
+First of all, edit the start.sh file by setting up a public IP to access the docker containers HOST_IP="IP HERE".
+
 Now start the initializer script to create users and mock services and integration between all fo them:
 
 ```shell
