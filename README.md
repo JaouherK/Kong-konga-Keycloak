@@ -9,19 +9,19 @@ This is for development purpose as authentication interface. The Goal is to be a
 To run this template execute the prepare script first to pull the images and start the containers:
 
 ```shell
-$ ./prepare_containers.sh
+$ ./prepare.sh
 ```
 
 for windows 10+:
 
 ```shell
-$ sh ./prepare_containers.sh
+$ sh ./prepare.sh
 ```
 
 Now start the initializer script to create users and mock services and integration between all fo them:
 
 ```shell
-$ ./initialize.sh
+$ ./start.sh
 ```
 
 ### Disclaimer
