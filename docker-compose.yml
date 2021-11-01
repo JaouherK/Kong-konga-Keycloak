@@ -111,7 +111,7 @@ services:
 
   keycloak:
     container_name: keycloak-app
-    image: jboss/keycloak:9.0.0
+    image: jboss/keycloak
     depends_on:
     - keycloak-db
     networks:
